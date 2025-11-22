@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- EDIT HERE: Your Browser Tab Title -->
+    <title>YourName | Web3 BD & CM</title>
+    <meta name="description" content="0xTitan - Web3 Business Development & Community Architect. Degen. Builder. Believer.">
+    
+    <!-- Pre-load a retro font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+
+    <!-- Tone.js for sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+
+    <style>
+        /* --- RESET & CORE VARIABLES --- */
+        :root {
+            /* NEW THEME: Cosmic Slate & Ice */
+            --bg-color: #020617; /* Very dark slate/black */
+            --terminal-bg: #0f172a; /* Rich Slate Blue */
+            --primary-color: #f8fafc; /* Ice White text */
+            --secondary-color: #94a3b8; /* Cool Grey */
+            --accent-color: #38bdf8; /* Electric Cyan (Promising/Growth color) */
+            
+            /* Clean glow, less "radioactive" than before */
+            --text-shadow: 0 0 2px rgba(255, 255, 255, 0.4), 0 0 8px rgba(56, 189, 248, 0.3);
+            --font-stack: 'VT323', monospace;
+            --scanline-color: rgba(0, 0, 0, 0.3);
+            --crash-red: #f87171; /* Tailwind red-400 */
+            --boot-yellow: #facc15; /* Tailwind yellow-400 */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-weight: normal !important;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            font-family: var(--font-stack);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.3rem;
+            line-height: 1.2;
+        }
+
+        /* --- BACKGROUND CANVAS (MATRIX RAIN) --- */
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.08; /* Very subtle data stream */
+        }
+
+        /* --- CRT MONITOR CONTAINER --- */
+        .monitor {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-color: var(--terminal-bg);
+            overflow: hidden;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            /* Subtle blue glow from edges */
+            box-shadow: inset 0 0 80px rgba(15, 23, 42, 0.9); 
+        }
+
+        /* --- SCREEN OVERLAYS (CRT EFFECTS) --- */
+        .scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                var(--scanline-color) 50%,
+                var(--scanline-color)
+            );
+            background-size: 100% 3px; /* Tighter scanlines for higher definition feel */
+            z-index: 10;
+            pointer-events: none;
+            animation: scrollScanlines 10s linear infinite;
+        }
+
+        .glow-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* Lighter, cleaner glass reflection */
+            box-shadow: inset 0 0 40px rgba(255, 255, 255, 0.05);
+            z-index: 11;
+            pointer-events: none;
+        }
+
+        /* --- TERMINAL INTERFACE --- */
+        .terminal {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            overflow-y: auto;
+            z-index: 5;
+            padding-bottom: 120px; /* Extra space for input + dock */
+            scrollbar-width: none;
+        }
+        .terminal::-webkit-scrollbar { 
+            display: none;
+        }
+
+        /* --- BOOT SEQUENCE OVERLAY --- */
+        #boot-sequence {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--terminal-bg);
+            z-index: 15; /* Above terminal */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+            padding: 50px;
+        }
+        #boot-text {
+            color: var(--primary-color);
+            font-size: 1.8rem;
+            white-space: pre-wrap;
+            min-height: 50px;
+            text-shadow: var(--text-shadow);
+        }
+        .crash-text { color: var(--crash-red); }
+        .boot-text { color: var(--boot-yellow); }
+
+        /* --- FLOATING ENGAGEMENT MODAL (New) --- */
+        #floating-modal {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            max-width: 300px;
+            padding: 15px 20px;
+            background: rgba(4, 12, 34, 0.95); /* Deep transparent blue */
+            border: 2px solid var(--accent-color);
+            border-radius: 8px;
+            z-index: 50;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(100%);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.27);
+            font-size: 1.1rem;
+            text-shadow: var(--text-shadow);
+            cursor: pointer;
+        }
+
+        #floating-modal.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+        }
+
+        .modal-header {
+            color: var(--boot-yellow);
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        .modal-content-text {
+            color: var(--primary-color);
+        }
+        .modal-close {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            color: var(--secondary-color);
+            cursor: pointer;
+        }
+        .modal-close:hover {
+            color: var(--crash-red);
+        }
+
+        /* --- TYPOGRAPHY & ELEMENTS --- */
+        h1, h2, h3 {
+            text-transform: uppercase;
+        }
+
+        .output-line {
+            margin-bottom: 10px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            text-shadow: var(--text-shadow);
+        }
+
+        .ascii-art {
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 10px;
+            white-space: pre;
+            color: var(--accent-color);
+            margin-bottom: 20px;
+            overflow-x: hidden;
+        }
+
+        /* Color Classes */
+        .cmd-keyword { color: var(--accent-color); } /* Keywords now Cyan */
+        .cmd-error { color: #ef4444; }   /* Red */
+        .cmd-success { color: var(--primary-color); }
+        .highlight { color: #ffffff; font-weight: bold !important; text-decoration: underline; text-decoration-color: var(--accent-color); text-underline-offset: 3px; }
+        .muted { color: var(--secondary-color); }
+
+        a {
+            color: var(--accent-color);
+            text-decoration: none;
+            border-bottom: 1px dashed var(--accent-color);
+            transition: all 0.2s;
+        }
+        a:hover {
+            background-color: var(--accent-color);
+            color: var(--bg-color);
+        }
+
+        /* --- INPUT AREA --- */
+        .input-line {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+            text-shadow: var(--text-shadow);
+        }
+
+        .prompt {
+            margin-right: 10px;
+            color: var(--accent-color);
+        }
+
+        #cmd-input {
+            background: transparent;
+            border: none;
+            color: var(--primary-color);
+            font-family: var(--font-stack);
+            font-size: 1.3rem;
+            flex-grow: 1;
+            outline: none;
+            text-shadow: var(--text-shadow);
+            caret-color: var(--accent-color);
+            text-transform: lowercase;
+            /* Added disabled styles */
+            opacity: 1; /* Keep visible */
+            cursor: text;
+        }
+        #cmd-input:disabled {
+            color: var(--secondary-color);
+            cursor: not-allowed;
+            /* Override default browser disabled look */
+            -webkit-text-fill-color: var(--secondary-color); 
+            opacity: 0.7;
+        }
+
+        /* --- DOCK (ICONS) --- */
+        .dock {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            background: rgba(2, 6, 23, 0.85); /* Darker background for dock */
+            border: 1px solid var(--secondary-color);
+            padding: 10px 20px;
+            border-radius: 12px;
+            z-index: 20;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .dock-icon {
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            fill: none;
+            stroke: var(--secondary-color); /* Default state is Grey */
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: all 0.3s ease;
+            opacity: 0.8;
+        }
+
+        .dock-icon:hover {
+            stroke: var(--accent-color); /* Hover is Cyan */
+            transform: scale(1.2) translateY(-5px);
+            opacity: 1;
+            filter: drop-shadow(0 0 8px var(--accent-color));
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes scrollScanlines {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 100%; }
+        }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 600px) {
+            body { font-size: 1.1rem; }
+            .ascii-art { font-size: 8px; line-height: 8px; }
+            .terminal { padding: 15px; padding-bottom: 140px; }
+            .dock { bottom: 10px; padding: 8px 15px; gap: 15px; width: 90%; justify-content: space-around; }
+            .dock-icon { width: 24px; height: 24px; }
+            #floating-modal {
+                top: 10px;
+                right: 10px;
+                max-width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Background Matrix Rain -->
+    <canvas id="matrix-canvas"></canvas>
+
+    <div class="monitor">
+        <div class="scanlines"></div>
+        <div class="glow-overlay"></div>
+
+        <!-- FLOATING ENGAGEMENT MODAL -->
+        <div id="floating-modal" onclick="this.classList.remove('show')">
+            <span class="modal-close">x</span>
+            <div class="modal-header">System Check</div>
+            <div id="modal-content" class="modal-content-text"></div>
+        </div>
+
+        <!-- BOOT SEQUENCE OVERLAY -->
+        <div id="boot-sequence">
+            <div id="boot-text"></div>
+        </div>
+        
+        <div class="terminal" id="terminal">
+            <div id="output"></div>
+            <div class="input-line">
+                <span class="prompt">visitor@0xtitan:~$</span>
+                <input type="text" id="cmd-input" autocomplete="off" autofocus disabled>
+            </div>
+        </div>
+
+        <!-- QUICK ACCESS DOCK -->
+        <div class="dock">
+            <!-- Bio / About -->
+            <svg class="dock-icon" onclick="typeAndExecute('about')" viewBox="0 0 24 24" title="About Me (Bio)">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+
+            <!-- Discord -->
+            <svg class="dock-icon" onclick="typeAndExecute('socials')" viewBox="0 0 24 24" title="Community (Discord)">
+                <path d="M9 12h6m-6 -6h6a3 3 0 0 1 3 3v10l-3 -3h-6a3 3 0 0 1 -3 -3v-7a3 3 0 0 1 3 -3z"></path>
+            </svg>
+
+            <!-- Projects / Rocket -->
+            <svg class="dock-icon" onclick="typeAndExecute('projects')" viewBox="0 0 24 24" title="Projects & Goals">
+                <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path>
+                <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path>
+                <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path>
+                <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path>
+            </svg>
+
+            <!-- Achievements / Trophy -->
+            <svg class="dock-icon" onclick="typeAndExecute('experience')" viewBox="0 0 24 24" title="Experience & Achievements">
+                <path d="M8 21h8m-4-9v9m0-9a5 5 0 0 1 5 -5h3a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-3a5 5 0 0 1 -5 5v0a5 5 0 0 1 -5 -5h-3a2 2 0 0 1 -2 -2v-3a2 2 0 0 1 2 -2h3a5 5 0 0 1 5 5z"></path>
+                <line x1="12" y1="3" x2="12" y2="7"></line>
+                <line x1="12" y1="3" x2="18" y2="3"></line>
+            </svg>
+
+            <!-- Mail / Contact -->
+            <svg class="dock-icon" onclick="typeAndExecute('contact')" viewBox="0 0 24 24" title="Contact Me">
+                <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                <polyline points="3 7 12 13 21 7"></polyline>
+            </svg>
+
+            <!-- Wallet / Donate -->
+            <svg class="dock-icon" onclick="typeAndExecute('donate')" viewBox="0 0 24 24" title="Wallet / Donate">
+                <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path>
+                <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path>
+                <path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z"></path>
+            </svg>
+        </div>
+
+    </div>
+
+    <script>
+        /* --- CONFIGURATION & DATA --- */
+        const CONFIG = {
+            username: "0xtitan__", 
+            prompt: "visitor@0xtitan:~$",
+            typingSpeed: 60,
+            bootSpeed: 80, 
+            reviveSpeed: 30,
+            commandThreshold: 4, // Show modal after this many commands
+            idleTime: 20000, // Show modal after 20 seconds of inactivity
+            modalDuration: 5000, // Modal display time in ms
+        };
+
+        const ASCII_HEADER = `
+  ___        _____ _ _              
+ / _ \\      |_!!_!!(_) |_ __ _ _ __  
+| | | |\\/\\/   | !!| | __/ _\` | '_ \\ 
+| |_| |>  <   | !!| | || (_| | | | |
+ \\___//_/\\_\\  |_!!| |_|\\__\\__,|_|_|_|
+                                    
+  >WEB3 BD & COMMUNITY MANAGER
+  >DEGEN MODE: ACTIVATED
+        `;
+        const COMMANDS = {
+            'help': {
+                desc: 'List all available commands',
+                output: `
+  <span class="cmd-keyword">about</span>           Who am I?
+  <span class="cmd-keyword">experience</span>       My grind (Experience)
+  <span class="cmd-keyword">projects</span>  Builds & Contributions
+  <span class="cmd-keyword">socials</span>   Where to find me (WAGMI)
+  <span class="cmd-keyword">donate</span>    Fuel the coffee/gas
+  <span class="cmd-keyword">contact</span>   Let's cook (Email/DM)
+  <span class="cmd-keyword">clear</span>     Clean the terminal
+  <span class="cmd-keyword">all</span>       Run everything
+                `
+            },
+            'about': {
+                desc: 'Bio',
+                output: `
+<span class="cmd-keyword">ANALYZING DNA SEQUENCE...</span>
+> [50%] Dev_Logic // Solidity, Scripting, Automation
+> [50%] Community_Soul // Vibes, Growth, Narrative
+> [100%] CONTRIBUTION
+
+I am the missing link between the codebase and the culture.I translate complex protocols into degen movements.
+Not just a dev. Not just a CM. The hybrid engine your project needs.
+                `
+            },
+            'experience': {
+                desc: 'Work Experience',
+                output: `
+<span class="cmd-keyword">[2024 - PRESENT]</span> : Community Manager @Mintairxyz
+> Scaled community from 0 to 15k active members on Discord.
+> Secured 20+ major partnerships with Tier-1 L2 ecosystems.
+> Reduced FUD during bear market by 90% through transparency campaigns.
+
+<span class="cmd-keyword">[2021 - 2023]</span> : Freelance Mod & Alpha Hunter
+> Worked with various DAO projects.
+> Provided alpha calls that did 10x-50x for the community.
+                `
+            },
+            'projects': {
+                desc: 'Portfolio',
+                output: `
+1. <span class="cmd-keyword">Project AlphaDAO</span> (Governance Consultant)
+   > Restructured proposal system, increasing voting participation by 40%.
+
+2. <span class="cmd-keyword">The Degen Gazette</span> (Newsletter)
+   > Weekly breakdown of on-chain data. 5k+ Subscribers.
+
+3. <span class="cmd-keyword">0xTitan Node</span> (Infrastructure)
+   > Running validators for SOL and ETH networks. High uptime.
+                `
+            },
+            'socials': {
+                desc: 'Links',
+                output: `
+[Twitter/X]  <a href="https://twitter.com/0xtitan__" target="_blank">@0xtitan_xyz</a>
+[Telegram]   <a href="https://t.me/Nikhil511" target="_blank">@0xtitan_tg</a>
+[Discord]    0xtitan__#2346
+[GitHub]     <a href="https://github.com/Nikhilchalla" target="_blank">github.com/0xtitan</a>
+                `
+            },
+            'donate': {
+                desc: 'Wallet Addresses',
+                output: `
+Appreciate the support, anon. Funds go to coffee and gas fees.<span class="muted">*Do not send dusty tokens.*</span>
+
+<span class="cmd-keyword">EVM:</span> 0xcBF491e8D7f3DF348b0962Cf97BE9704d349952D (Copyable)
+<span class="cmd-keyword">SOL:</span> 4tNsfCpkdSKkSSRU9C9hJigQPJfbecZA4B7Tdz71moVs (Copyable)
+                `
+            },
+            'contact': {
+                desc: 'Reach Out',
+                output: `
+Email: <a href="mailto:nikhil@mintair.xyz">nikhil@mintair.xyz</a>
+DM: Open on Twitter.
+
+Looking for:
+- Protocol Partnerships / Business Development
+- Community Manager
+                `
+            },
+             'matrix': {
+                desc: 'Toggle Matrix',
+                output: `Toggling reality simulation...`
+            }
+        };
+
+        const ENGAGEMENT_PROMPTS = [
+            "You're really interested in the profile, aren't you? Glad you're digging into the data!",
+            "Analyzing deeper, I see. What key metric are you focused on right now?",
+            "Protocol status: 100% engaged. Keep running those commands, anon.",
+            "Bored of the matrix? Type 'matrix' to toggle the background.",
+            "Warning: High engagement detected. Might be a whale.",
+            "Did you find the easter egg yet? Keep exploring.",
+            "Processing interaction log... You are human. Verified.",
+            "Tip: Use the up arrow key to quickly re-run previous commands."
+        ];
+
+
+        /* --- TERMINAL LOGIC & UI ELEMENTS --- */
+        const terminalOutput = document.getElementById('output');
+        const cmdInput = document.getElementById('cmd-input');
+        const terminalContainer = document.getElementById('terminal');
+        const bootScreen = document.getElementById('boot-sequence');
+        const bootText = document.getElementById('boot-text');
+        const floatingModal = document.getElementById('floating-modal');
+        const modalContent = document.getElementById('modal-content');
+
+        let commandHistory = [];
+        let historyIndex = -1;
+        let commandCount = 0; 
+        let modalTimer; 
+        
+        // --- Tone.js Sound Definitions ---
+        let crashSynth;
+        let bootSynth;
+        let confirmSynth; // New: For Icon Clicks
+        let pingSynth;    // New: For Modal Show
+
+        function initializeAudio() {
+            // 1. Crash Sound (Noise)
+            crashSynth = new Tone.NoiseSynth({
+                noise: { type: "pink" },
+                envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1 }
+            }).toDestination();
+
+            // 2. Boot Success Sound (Polysynth Arpeggio)
+            bootSynth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0.0, release: 0.5 }
+            }).toDestination();
+            
+            // 3. Icon Click Sound (MonoSynth, short/low)
+            confirmSynth = new Tone.MonoSynth({
+                oscillator: { type: "square" },
+                envelope: { attack: 0.005, decay: 0.05, sustain: 0.0, release: 0.1 },
+                filterEnvelope: { attack: 0.001, decay: 0.05, sustain: 0.0, release: 0.1, baseFrequency: 200, octaves: 4 }
+            }).toDestination();
+
+            // 4. Modal Show Sound (Synth, short/high ping)
+            pingSynth = new Tone.Synth({
+                oscillator: { type: "triangle" },
+                envelope: { attack: 0.005, decay: 0.1, sustain: 0.0, release: 0.2 }
+            }).toDestination();
+        }
+
+        function playCrashSound() {
+            if (Tone.context.state !== 'running') return;
+            crashSynth.triggerAttackRelease("C4", "8n");
+            setTimeout(() => crashSynth.triggerAttackRelease("G3", "8n"), 50);
+        }
+
+        function playBootSound() {
+            if (Tone.context.state !== 'running') return;
+            const now = Tone.now();
+            bootSynth.triggerAttackRelease("C4", "32n", now);
+            bootSynth.triggerAttackRelease("E4", "32n", now + 0.05);
+            bootSynth.triggerAttackRelease("G4", "32n", now + 0.1);
+            bootSynth.triggerAttackRelease("C5", "32n", now + 0.15);
+        }
+        
+        function playClickSound() {
+             if (Tone.context.state !== 'running') return;
+             // Trigger a solid, low-frequency blip
+             confirmSynth.triggerAttackRelease("G3", "64n");
+        }
+
+        function playModalSound() {
+             if (Tone.context.state !== 'running') return;
+             // Trigger a sharp, high-pitched ping
+             pingSynth.triggerAttackRelease("C6", "32n");
+        }
+
+        // Utility to wait for a delay
+        const delay = ms => new Promise(res => setTimeout(res, ms));
+
+        // --- Engagement Modal Logic ---
+        function resetModalTimer() {
+            clearTimeout(modalTimer);
+            modalTimer = setTimeout(showEngagementModal, CONFIG.idleTime);
+        }
+
+        function showEngagementModal() {
+            // Only show if the modal isn't already visible
+            if (floatingModal.classList.contains('show')) return;
+            
+            playModalSound(); // NEW: Play sound when modal appears!
+            
+            // 1. Reset Command Counter and Timer
+            commandCount = 0;
+            resetModalTimer(); 
+
+            // 2. Select a random message
+            const randomIndex = Math.floor(Math.random() * ENGAGEMENT_PROMPTS.length);
+            modalContent.innerHTML = ENGAGEMENT_PROMPTS[randomIndex];
+
+            // 3. Show Modal
+            floatingModal.classList.add('show');
+
+            // 4. Hide after duration
+            setTimeout(() => {
+                floatingModal.classList.remove('show');
+            }, CONFIG.modalDuration);
+        }
+
+        // --- Boot Sequence Logic ---
+        // Function to type text on the main boot screen
+        async function typeBootText(text, speed, className = '') {
+            bootText.innerHTML = '';
+            bootText.className = className;
+            for (const char of text) {
+                bootText.innerHTML += char;
+                await delay(speed);
+            }
+        }
+
+        // The main sequence to start the app
+        async function startBootSequence() {
+            // 1. Initialize Audio Context (requires user gesture, which is handled by the first interaction)
+            // We rely on the first click/keydown to resume the context.
+
+            // 2. Initial State: Show crash message (slow typing)
+            const crashMessage = `[CRITICAL FAILURE] WEB3 UPLINK LOST.\nINITIATING CORE DUMP...`;
+            playCrashSound(); // CRASH SOUND
+            await typeBootText(crashMessage, CONFIG.bootSpeed, 'crash-text');
+
+            await delay(1500); // Pause for dramatic effect
+
+            // 3. Rebooting State (fast typing)
+            const rebootMessage = `\n[INITIATING REBOOT PROTOCOL: EMERGENCY MODE]\nDEBUGGING NODE 0xtitan__... [OK]\nRECALIBRATING ETH-L2 BRIDGE... [SUCCESS]`;
+            await typeBootText(rebootMessage, CONFIG.reviveSpeed, 'boot-text');
+
+            await delay(500); // Pause before transition
+            playBootSound(); // SUCCESS SOUND
+
+            // 4. Transition to Terminal
+            bootScreen.style.opacity = '0';
+            await delay(500); // Wait for fade out
+            bootScreen.style.display = 'none';
+
+            // 5. Initialize Terminal
+            printOutput(ASCII_HEADER);
+            printOutput("System initialized. Web3 Uplink established.");
+            printOutput("Type <span class='cmd-keyword'>'help'</span> to view commands.\n");
+            
+            cmdInput.disabled = false; // Enable input
+            cmdInput.focus();
+            
+            // 6. Start the idle timer
+            resetModalTimer();
+        }
+
+        // Initialize Audio and Boot Sequence on first interaction
+        document.addEventListener('click', async () => {
+             if (Tone.context.state !== 'running') {
+                await Tone.start();
+            }
+        }, { once: true });
+        
+        document.addEventListener('keydown', async () => {
+             if (Tone.context.state !== 'running') {
+                await Tone.start();
+            }
+        }, { once: true });
+
+
+        // Initialize App on Window Load
+        window.onload = () => {
+            initializeAudio(); // Define the synths
+            startBootSequence();
+        };
+
+
+        // Keep focus on input and reset timer on interaction
+        document.addEventListener('click', (e) => {
+            if (cmdInput.disabled) return;
+            resetModalTimer(); // Reset timer on click
+            // Don't focus if clicking inside the dock or modal
+            if (e.target.closest('.dock') || e.target.closest('#floating-modal')) return;
+            
+            const sel = window.getSelection();
+            if (sel.toString() === '') { 
+                cmdInput.focus();
+            }
+        });
+        
+        // Reset timer on keydown for all keys
+        document.addEventListener('keydown', () => {
+            if (cmdInput.disabled) return;
+            resetModalTimer();
+        });
+
+        // Handle Input
+        cmdInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const input = cmdInput.value.trim();
+                if (input) {
+                    commandHistory.push(input);
+                    historyIndex = commandHistory.length;
+                    processCommand(input);
+                }
+                cmdInput.value = '';
+            } else if (e.key === 'ArrowUp') {
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    cmdInput.value = commandHistory[historyIndex];
+                }
+                e.preventDefault();
+            } else if (e.key === 'ArrowDown') {
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    cmdInput.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    cmdInput.value = '';
+                }
+                e.preventDefault();
+            }
+        });
+
+        // Function to type the command into the input field and execute it
+        function typeAndExecute(command) {
+            if (cmdInput.disabled) return; // Prevent execution if still booting
+            
+            playClickSound(); // NEW: Play sound immediately when icon is clicked
+
+            // Reset timer and count this as an action
+            resetModalTimer();
+            
+            cmdInput.value = ''; // Clear input field first
+            cmdInput.focus();
+            cmdInput.disabled = true; // Disable while typing command
+
+            let i = 0;
+            const delayTime = CONFIG.typingSpeed > 0 ? CONFIG.typingSpeed : 50; 
+
+            // Function to handle character by character typing
+            function type() {
+                if (i < command.length) {
+                    cmdInput.value += command.charAt(i);
+                    i++;
+                    setTimeout(type, delayTime);
+                } else {
+                    // Typing finished, now execute the command
+                    const input = cmdInput.value.trim();
+                    if (input) {
+                        commandHistory.push(input);
+                        historyIndex = commandHistory.length;
+                        processCommand(input); 
+                    }
+                    cmdInput.value = ''; // Clear input after execution
+                    cmdInput.disabled = false; // Re-enable input
+                    cmdInput.focus();
+                }
+            }
+            type();
+        }
+
+        function processCommand(input) {
+            const cleanInput = input.toLowerCase().split(' ')[0];
+            
+            // Print the user's command line
+            const commandLine = document.createElement('div');
+            commandLine.className = 'output-line';
+            commandLine.innerHTML = `<span class="prompt">${CONFIG.prompt}</span> ${input}`;
+            terminalOutput.appendChild(commandLine);
+
+            // Command Counting Logic
+            commandCount++;
+            if (commandCount >= CONFIG.commandThreshold) {
+                // If triggered by command count, show modal immediately
+                showEngagementModal(); 
+            } else {
+                // Otherwise, reset the idle timer
+                resetModalTimer();
+            }
+            
+            // Command Execution
+            if (cleanInput === 'clear') {
+                terminalOutput.innerHTML = '';
+                printOutput(ASCII_HEADER); // Reprint header
+                return;
+            }
+
+            if (cleanInput === 'all') {
+                 const keys = Object.keys(COMMANDS).filter(k => k !== 'help' && k !== 'matrix' && k !== 'all');
+                 keys.forEach(key => {
+                     printOutput(COMMANDS[key].output);
+                 });
+                 return;
+            }
+
+            if (cleanInput === 'matrix') {
+                toggleMatrix();
+                printOutput("<span class='cmd-success'>Matrix effect toggled.</span>");
+                scrollToBottom();
+                return;
+            }
+
+            if (COMMANDS[cleanInput]) {
+                printOutput(COMMANDS[cleanInput].output);
+            } else {
+                printOutput(`<span class="cmd-error">Command not found: ${input}. Type 'help' for list.</span>`);
+            }
+            
+            scrollToBottom();
+        }
+
+        function printOutput(text) {
+            const div = document.createElement('div');
+            div.className = 'output-line';
+            div.innerHTML = text;
+            terminalOutput.appendChild(div);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            terminalContainer.scrollTop = terminalContainer.scrollHeight;
+        }
+
+        /* --- MATRIX BACKGROUND EFFECT --- */
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+        
+        const cols = Math.floor(width / 20) + 1;
+        const ypos = Array(cols).fill(0);
+
+        let matrixInterval;
+        let isMatrixRunning = true;
+
+        function matrix() {
+            // Fade out slightly to create trail effect
+            ctx.fillStyle = '#00000008'; // Very transparent black (08 alpha)
+            ctx.fillRect(0, 0, width, height);
+
+            // Set color to cool white/grey for data feel
+            ctx.fillStyle = '#94a3b8'; // Cool Slate Grey
+            ctx.font = '15pt monospace';
+
+            ypos.forEach((y, ind) => {
+                // Generate random character
+                const text = String.fromCharCode(Math.random() * 128);
+                const x = ind * 20;
+                ctx.fillText(text, x, y);
+
+                // Reset if at bottom (randomly)
+                if (y > 100 + Math.random() * 10000) ypos[ind] = 0;
+                else ypos[ind] = y + 20;
+            });
+        }
+
+        function startMatrix() {
+            if (matrixInterval) clearInterval(matrixInterval);
+            matrixInterval = setInterval(matrix, 50);
+        }
+
+        function toggleMatrix() {
+            if (isMatrixRunning) {
+                clearInterval(matrixInterval);
+                ctx.clearRect(0, 0, width, height);
+            } else {
+                startMatrix();
+            }
+            isMatrixRunning = !isMatrixRunning;
+        }
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            // Reset columns
+            const newCols = Math.floor(width / 20) + 1;
+            while (ypos.length < newCols) ypos.push(0);
+        });
+
+        // Start
+        startMatrix();
+
+    </script>
+</body>
+</html>
